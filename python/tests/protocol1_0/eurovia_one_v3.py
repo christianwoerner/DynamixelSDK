@@ -5,7 +5,7 @@ from pydub.playback import play
 import csv
 from time import sleep
 import playsound
-
+import random
 
 if os.name == 'nt':
     import msvcrt
@@ -29,7 +29,7 @@ from dynamixel_sdk import *                    # Uses Dynamixel SDK library
 ADDR_MX_TORQUE_ENABLE      = 24               # Control table address is different in Dynamixel model
 ADDR_MX_GOAL_POSITION      = 30
 ADDR_MX_PRESENT_POSITION   = 36
-ADDR_MOVEMENT_SPEED   = 32
+ADDR_MOVEMENT_SPEED   = 60
 
 # Protocol version
 PROTOCOL_VERSION            = 1.0               # See which protocol version is used in the Dynamixel
@@ -44,7 +44,7 @@ TORQUE_ENABLE               = 1                 # Value for enabling the torque
 TORQUE_DISABLE              = 0                 # Value for disabling the torque
 DXL_MINIMUM_POSITION_VALUE  = 450           # Dynamixel will rotate between this value
 DXL_MAXIMUM_POSITION_VALUE  = 550            # and this value (note that the Dynamixel would not move when the position value is out of movable range. Check e-manual about the range of the Dynamixel you use.)
-DXL_MOVING_STATUS_THRESHOLD = 20                # Dynamixel moving status threshold
+DXL_MOVING_STATUS_THRESHOLD = 45                # Dynamixel moving status threshold
 
 index = 0
 dxl_goal_position = [DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE]         # Goal position
@@ -88,9 +88,11 @@ else:
 # Enable Dynamixel Torque
 dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 2, ADDR_MX_TORQUE_ENABLE, TORQUE_ENABLE)
 dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 3, ADDR_MX_TORQUE_ENABLE, TORQUE_ENABLE)
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, 6, 0)
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, 8, 0)
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, ADDR_MX_TORQUE_ENABLE, TORQUE_DISABLE)
+dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, ADDR_MX_TORQUE_ENABLE, TORQUE_ENABLE)
+
+# dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, 6, 0)
+# dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, 8, 0)
+# dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, ADDR_MX_TORQUE_ENABLE, TORQUE_DISABLE)
 
 if dxl_comm_result != COMM_SUCCESS:
     print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
@@ -102,7 +104,7 @@ else:
 #%%
 
 def move_servo(servo, position):
-    dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, servo, ADDR_MOVEMENT_SPEED, 50)
+    dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, servo, ADDR_MOVEMENT_SPEED, 80)
     dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, servo, ADDR_MX_GOAL_POSITION, position)
 
 def move_wheel(servo,speed):
@@ -128,9 +130,11 @@ cap = cv2.VideoCapture(1)
 while True:
     # Read the frame
     _, img = cap.read()
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    rotated_frame = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
+    gray = cv2.cvtColor(rotated_frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    sleep(0.5)
     old_x = x
     old_y = y
     old_w = w
@@ -138,39 +142,45 @@ while True:
 
     if (plays == 0):
         for (x, y, w, h) in faces:
-            cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            cv2.rectangle(rotated_frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
             #print("x"+str(x) + "___w"+str(w) + "_____y"+str(y) + "___h"+str(h))
 
         if (x == old_x) and (y == old_y):
-            move_wheel(5,0)
+            move_servo(5,0)
 
         elif (x != old_x) and (y != old_y):
 
             print("position"+ str(get_position(5)))
-            if (((x+x+w)/2)<270):
-                move_wheel(5,200)
+            if (((x+x+w)/2)<100):
+                move_servo(5,700)
+                print("moving right")
 
-            elif (((x+x+w)/2)>390):
-                move_wheel(5,1200)
+            elif (((x+x+w)/2)>400):
+                move_servo(5,200)
+                print("moving left")
 
             else:
-                move_wheel(5,0) 
+                move_servo(5,0) 
 
             height = get_position(3)
 
-            if (((y+y+h)/2)<150):
+            if (((y+y+h)/2)<270):
                 newheight = height+20
                 if (newheight < head_max):
-                    move_servo(3,newheight)
-                    print("should be here" + str(newheight))
+                    move_servo(3,540)
+                    print("moving down")
 
-            elif (((y+y+h)/2)>350):
+            elif (((y+y+h)/2)>390):
                 newheight = height-10
                 if (newheight > head_min):
-                    move_servo(3,newheight)
+                    move_servo(3,480)
+                    print("moving up")
 
             else:
                 plays = 0
+                print("dance")
+                if random.random() > 0.5:
+                    move_servo(2,random.randint(480,520))
 
     # if (plays == 1):
     #     # song = AudioSegment.from_wav("test.wav")
@@ -182,7 +192,7 @@ while True:
 
 
     # Display
-    cv2.imshow('img', img)
+    cv2.imshow('img', rotated_frame)
     # Stop if escape key is pressed
     k = cv2.waitKey(30) & 0xff
     if k==27:
@@ -192,53 +202,5 @@ move_wheel(5,0)
 
 # Release the VideoCapture object
 cap.release()
-
-# %%
-packetHandler.write2ByteTxRx(portHandler, 5, ADDR_MOVEMENT_SPEED, 0)
-#%%
-newweight = 500
-move_servo(3,550)
-print(get_position(3))
-
-# %%
-
-print(dxl_present_position)
-# %%
-## 5
- #eft limit 0
-# right limit 668
-
-#%%
-
-packetHandler.write2ByteTxRx(portHandler, 5, ADDR_MOVEMENT_SPEED, 0)
-
-#%%
-
-move_servo(3,350)
-move_servo(2,400)
-sleep(1)
-song = AudioSegment.from_wav("test.wav")
-play(song)
-
-#%%
-dxl_present_position, dxl_comm_result, dxl_error = packetHandler.read2ByteTxRx(portHandler, 5, ADDR_MX_PRESENT_POSITION)
-print(dxl_present_position)
-
-
-#%%
-# Disable Dynamixel Torque
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 2, ADDR_MX_TORQUE_ENABLE, TORQUE_DISABLE)
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 3, ADDR_MX_TORQUE_ENABLE, TORQUE_DISABLE)
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, ADDR_MX_TORQUE_ENABLE, TORQUE_DISABLE)
-if dxl_comm_result != COMM_SUCCESS:
-    print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-elif dxl_error != 0:
-    print("%s" % packetHandler.getRxPacketError(dxl_error))
-
-
-portHandler.closePort()
-
-#%%
-dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, 3, ADDR_MX_GOAL_POSITION, 500)
 
 # %%

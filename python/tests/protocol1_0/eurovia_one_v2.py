@@ -29,7 +29,7 @@ from dynamixel_sdk import *                    # Uses Dynamixel SDK library
 ADDR_MX_TORQUE_ENABLE      = 24               # Control table address is different in Dynamixel model
 ADDR_MX_GOAL_POSITION      = 30
 ADDR_MX_PRESENT_POSITION   = 36
-ADDR_MOVEMENT_SPEED   = 32
+ADDR_MOVEMENT_SPEED   = 60
 
 # Protocol version
 PROTOCOL_VERSION            = 1.0               # See which protocol version is used in the Dynamixel
@@ -44,7 +44,7 @@ TORQUE_ENABLE               = 1                 # Value for enabling the torque
 TORQUE_DISABLE              = 0                 # Value for disabling the torque
 DXL_MINIMUM_POSITION_VALUE  = 450           # Dynamixel will rotate between this value
 DXL_MAXIMUM_POSITION_VALUE  = 550            # and this value (note that the Dynamixel would not move when the position value is out of movable range. Check e-manual about the range of the Dynamixel you use.)
-DXL_MOVING_STATUS_THRESHOLD = 20                # Dynamixel moving status threshold
+DXL_MOVING_STATUS_THRESHOLD = 45                # Dynamixel moving status threshold
 
 index = 0
 dxl_goal_position = [DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE]         # Goal position
@@ -88,9 +88,11 @@ else:
 # Enable Dynamixel Torque
 dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 2, ADDR_MX_TORQUE_ENABLE, TORQUE_ENABLE)
 dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 3, ADDR_MX_TORQUE_ENABLE, TORQUE_ENABLE)
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, 6, 0)
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, 8, 0)
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, ADDR_MX_TORQUE_ENABLE, TORQUE_DISABLE)
+dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, ADDR_MX_TORQUE_ENABLE, TORQUE_ENABLE)
+
+# dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, 6, 0)
+# dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, 8, 0)
+# dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, 5, ADDR_MX_TORQUE_ENABLE, TORQUE_DISABLE)
 
 if dxl_comm_result != COMM_SUCCESS:
     print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
@@ -102,7 +104,7 @@ else:
 #%%
 
 def move_servo(servo, position):
-    dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, servo, ADDR_MOVEMENT_SPEED, 50)
+    dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, servo, ADDR_MOVEMENT_SPEED, 80)
     dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, servo, ADDR_MX_GOAL_POSITION, position)
 
 def move_wheel(servo,speed):
@@ -112,8 +114,50 @@ def get_position(servo):
     dxl_present_position, dxl_comm_result, dxl_error = packetHandler.read2ByteTxRx(portHandler, servo, ADDR_MX_PRESENT_POSITION)
     return dxl_present_position
 
+
 #%%
+move_servo(2,500)
 move_servo(3,500)
+move_servo(5,500)
+
+
+#%%
+# while True:
+#     sleep(3)
+#     move_servo(2,500)
+#     move_servo(3,450)
+#     # move_servo(5,300)
+
+#     sleep(3)
+#     move_servo(2,550)
+#     move_servo(3,550)
+#     # move_servo(5,700)
+
+def starting_pose():
+    move_servo(2,500)
+    move_servo(3,500)
+    move_servo(5,500)
+
+def thinking():
+    move_servo(2,500)
+    move_servo(3,450)
+
+def stare():
+    move_servo(2,500)
+    move_servo(3,600)
+    move_servo(5,500)
+
+
+#%%
+
+starting_pose()
+sleep(1)
+thinking()
+sleep(1)
+stare()
+sleep(1)
+
+
 #%%
 x = 320 
 w = 0
@@ -142,32 +186,35 @@ while True:
             #print("x"+str(x) + "___w"+str(w) + "_____y"+str(y) + "___h"+str(h))
 
         if (x == old_x) and (y == old_y):
-            move_wheel(5,0)
+            move_servo(5,0)
 
         elif (x != old_x) and (y != old_y):
 
             print("position"+ str(get_position(5)))
             if (((x+x+w)/2)<270):
-                move_wheel(5,200)
+                move_servo(5,1000)
+                print("moving right")
 
             elif (((x+x+w)/2)>390):
-                move_wheel(5,1200)
+                move_servo(5,0)
+                print("moving left")
 
             else:
-                move_wheel(5,0) 
+                move_servo(5,0) 
 
             height = get_position(3)
 
             if (((y+y+h)/2)<150):
                 newheight = height+20
                 if (newheight < head_max):
-                    move_servo(3,newheight)
-                    print("should be here" + str(newheight))
+                    move_servo(3,300)
+                    print("moving down")
 
             elif (((y+y+h)/2)>350):
                 newheight = height-10
                 if (newheight > head_min):
-                    move_servo(3,newheight)
+                    move_servo(3,600)
+                    print("moving up")
 
             else:
                 plays = 0
